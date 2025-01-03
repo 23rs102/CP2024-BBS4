@@ -111,7 +111,7 @@ function createPost(author, content) {
 
     // author はログインしているユーザのメールアドレスに変更、userId を追加
     const postData = {
-        author: currentUser.email,
+        authorDisplayName: currentUser.displayName || '匿名ユーザー',
         content: content,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
         userId: currentUser.uid
@@ -179,7 +179,7 @@ function createPostElement(post) {
     return `
         <div class="post" id="post-${post.id}">
             <div class="post-header">
-                <span class="post-author">${escapeHtml(post.author)}</span>
+                <span class="post-author">${escapeHtml(post.authorDisplayName || post.author)}</span>
                 <!-- 編集権限があれば、編集・削除機能を表示 -->
                 ${actions}
             </div>
@@ -407,12 +407,20 @@ function login(email, password) {
 
 // 新規登録処理
 function register(email, password) {
+    const displayName = $('#registerName').val();
     if (!validateAuthInput(email, password, true)) return;
+    if (!displayName || !displayName.trim()){
+        showMessage('名前を入力してください', 'error');
+    }
 
     const button = $('#registerButton');
     button.prop('disabled', true);
 
     firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            const user = userCredential.user;
+            return user.updateProfile({ displayName });
+        })    
         .then(() => {
             showMessage('アカウントを作成しました');
             clearAuthForm();
@@ -448,7 +456,7 @@ function updateUI(user) {
     if (user) {
         $('.logged-in').show();
         $('.logged-out').hide();
-        $('#userEmail').text(user.email);
+        $('#userEmail').text(user.displayName || user.email);
     } else {
         $('.logged-in').hide();
         $('.logged-out').show();
@@ -530,6 +538,8 @@ window.addEventListener('unload', function() {
                        class="form-control" placeholder="example@example.com">
             </div>
             <div class="form-group">
+                <label for="registerName">名前(ニックネーム)</label>
+                <input type="text" id="registerName" class="form-control" placeholder="ニックネームを入力してください">
                 <label for="loginPassword">パスワード</label>
                 <input type="password" id="loginPassword" 
                        class="form-control" placeholder="6文字以上">
